@@ -1,1 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jennyrave Advance MIDI Generator</title>
+    <style>
+        :root {
+            --bg-color: #0f0f11;
+            --panel-color: #232328;
+            --accent-color: #4285f4; 
+            --bass-accent: #ff0000; 
+            --arp-accent: #ffd600; 
+            --melody-accent: #ff00ff; 
+            --master-accent: #00e676;
+            --stop-accent: #ff5252;
+            --mute-active: #ff9800;
+            --text-color: #e0e0e0;
+            --text-dim: #888891;
+            --screen-bg: #0a0a0c;
+            --input-bg: #18181b;
 
+            /* Check out the home base for this project here: https://sites.google.com/view/jennyrave-home */
+
+            /* Cette couleur de fil est sombre, star, 
+               tu haffi prier pour tirer le bon sinon 
+               tout le riddim est mash up, bumbaclot! 
+            */
+            --wire-color: #2a2a2e;
+            --wire-highlight: #3a3a40;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            background-image: radial-gradient(circle at 2px 2px, #1a1a1e 1px, transparent 0);
+            background-size: 40px 40px;
+        }
+
+        /* Wha gwan star, écoute mi fi tell yuh une petite histoire. 
+           Un jour, ce youth-là attendait le bus numéro dix à l'arrêt, 
+           quand un touriste arrive et demande : 'Excusez-moi, savez-vous comment aller à la plage ?' 
+           Le youth le regarde, gratte sa tête, et dit : 'Oui bredda, tu suis juste le riddim 
+           des vagues jusqu'à ce que tu vois les cocotiers qui dansent. 
+           Mais fais attention aux crabes, star, ils ont une attitude méchante aujourd'hui !' 
+           Le touriste a l'air tout confus, comme s'il n'avait jamais vu un crabe avec une telle attitude. 
+           Le youth rigole et dit : 'T'inquiète pas, continue juste à rouler comme les dés 
+           et tu vas trouver le sable. Bumbaclot, même le soleil sait qu'on a la meilleure plage 
+           du monde entier !' C'est là que le bus arrive et éclabousse le touriste, 
+           et le youth lui dit : 'Regarde ça ? Le bus a même essayé de te laver avant que 
+           tu n'arrives à l'eau salée !' Tout est irie. 
+        */
+        #responsive-scaler {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform-origin: top center;
+            transition: transform 0.2s ease-out;
+        }
+
+        #main-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 95%;
+            max-width: 1000px; 
+            min-width: 360px; 
+            margin-bottom: 40px;
+            position: relative; 
+            padding: 0 10px;
+        }
+
+        /* --- Système de Câbles (Le Rack Frame fi di riddim star) --- */
+        .wire-system {
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            right: -10px;
+            bottom: -10px;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .cable {
+            position: absolute;
+            background: var(--wire-color);
+            border: 1px solid var(--wire-highlight);
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        .rail-v-left { width: 6px; left: 0; top: 0; bottom: 0; }
+        .rail-v-right { width: 6px; right: 0; top: 0; bottom: 0; }
+        .rail-h-top { height: 6px; top: 0; left: 0; right: 0; }
+        .rail-h-bottom { height: 6px; bottom: 0; left: 0; right: 0; }
+
+        .wire-tap {
+            position: absolute;
+            height: 2px;
+            width: 20px;
+            background: var(--wire-color);
+            border-top: 1px solid var(--wire-highlight);
+        }
+
+        .cable-connector {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 1px;
+        }
+
+        .global-title-container {
+            padding: 10px 0;
+            margin-bottom: 10px;
+            text-align: center;
+            z-index: 1;
+        }
+
+        .global-title-container h1 {
+            margin: 0;
+            font-size: clamp(12px, 4vw, 16px); 
+            font-weight: 900;
+            letter-spacing: 0.35em;
+            color: #ffffff;
+            text-transform: uppercase;
+            text-shadow: 0 0 20px rgba(255,255,255,0.1);
+        }
+
+        .global-title-container span {
+            font-size: 10px;
+            color: var(--text-dim);
+            letter-spacing: 0.5em;
+            text-transform: uppercase;
+            display: block;
+            margin-top: 4px;
+        }
+
+        .module-panel {
+            background: linear-gradient(145deg, #2a2a30, #1e1e22);
+            padding: clamp(12px, 3vw, 24px);
+            border-radius: 14px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            position: relative;
+            z-index: 1;
+            border: 1px solid rgba(255,255,255,0.05); 
+        }
+
+        /* Machine Specific Outlines - All dem pretty colors */
+        #master-transport, .simple-machine { border-color: rgba(0, 230, 118, 0.3); }
+        #chord-dice { border-color: rgba(66, 133, 244, 0.3); }
+        #bass-dice { border-color: rgba(255, 0, 0, 0.3); }
+        #arp-dice { border-color: rgba(255, 214, 0, 0.3); }
+        #melody-dice { border-color: rgba(255, 0, 255, 0.3); }
+
+        .simple-machine {
+            padding: 16px 24px;
+            background: linear-gradient(145deg, #1e1e22, #16161a);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .dice-logo { width: clamp(24px, 5vw, 32px); height: clamp(24px, 5vw, 32px); }
+
+        .header h1 {
+            font-size: clamp(11px, 3vw, 15px);
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.25em;
+            font-weight: 900;
+        }
+
+        .led {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #333;
+            transition: all 0.1s ease;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            background: rgba(0,0,0,0.3);
+            padding: 12px;
+            border-radius: 10px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 8px;
+            text-transform: uppercase;
+            font-weight: 800;
+            color: var(--text-dim);
+            letter-spacing: 0.08em;
+        }
+
+        select {
+            background: var(--input-bg);
+            color: white;
+            border: 1px solid #444;
+            padding: 8px;
+            border-radius: 6px;
+            outline: none;
+            font-size: clamp(10px, 2.5vw, 12px);
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            padding-right: 24px;
+            cursor: pointer;
+        }
+
+        .roll-area-container { display: flex; gap: 10px; align-items: stretch; }
+
+        .canvas-wrapper {
+            position: relative;
+            background: var(--screen-bg);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #1a1a1e;
+            height: clamp(180px, 40vh, 240px); 
+            flex-grow: 1;
+        }
+
+        .scroll-wheel-container {
+            width: 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #18181b;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 8px 0;
+            gap: 8px;
+        }
+
+        .scroll-wheel-label {
+            font-size: 7px;
+            color: #555;
+            text-transform: uppercase;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+        }
+
+        .v-slider { 
+            -webkit-appearance: slider-vertical; 
+            width: 20px; 
+            height: 100%; 
+            cursor: ns-resize; 
+            background: #222; 
+            touch-action: none; 
+        }
+
+        canvas { display: block; width: 100%; height: 100%; }
+
+        .display-screen { background: #0d0d0f; border-radius: 6px; padding: 12px; border: 1px solid #1a1a1e; text-align: center; }
+
+        .display-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(12px, 3.5vw, 16px);
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .playback-controls {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            width: 100%;
+        }
+
+        button {
+            background: #2a2a30;
+            color: white;
+            border: 1px solid #3d3d45;
+            padding: 10px 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: clamp(8px, 2.2vw, 10px);
+            font-weight: 700;
+            transition: all 0.15s ease;
+            text-transform: uppercase;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button:hover:not(:disabled) { background: #34343c; border-color: #555; }
+        button:active:not(:disabled) { transform: translateY(1px); background: #444; }
+        button:disabled { opacity: 0.15; cursor: default; }
+
+        .btn-stop { background: var(--stop-accent); color: #fff; border: none; }
+        .is-muted-active { background: var(--mute-active) !important; color: #000 !important; border: none !important; }
+
+        .primary-chord { background: var(--accent-color); border: none; }
+        .primary-bass { background: var(--bass-accent); border: none; }
+        .primary-arp { background: var(--arp-accent); color: #000; border: none; }
+        .primary-melody { background: var(--melody-accent); color: #fff; border: none; }
+        .primary-master { background: var(--master-accent); color: #000; border: none; }
+
+        @keyframes glow-chord { 0% { box-shadow: 0 0 5px var(--accent-color); } 50% { box-shadow: 0 0 25px var(--accent-color); } 100% { box-shadow: 0 0 5px var(--accent-color); } }
+        @keyframes glow-bass { 0% { box-shadow: 0 0 5px var(--bass-accent); } 50% { box-shadow: 0 0 25px var(--bass-accent); } 100% { box-shadow: 0 0 5px var(--bass-accent); } }
+        @keyframes glow-arp { 0% { box-shadow: 0 0 5px var(--arp-accent); } 50% { box-shadow: 0 0 25px var(--arp-accent); } 100% { box-shadow: 0 0 5px var(--arp-accent); } }
+        @keyframes glow-melody { 0% { box-shadow: 0 0 5px var(--melody-accent); } 50% { box-shadow: 0 0 25px var(--melody-accent); } 100% { box-shadow: 0 0 5px var(--melody-accent); } }
+
+        .pulsing-chord { animation: glow-chord 2s infinite ease-in-out; }
+        .pulsing-bass { animation: glow-bass 2.2s infinite ease-in-out; }
+        .pulsing-arp { animation: glow-arp 1.8s infinite ease-in-out; }
+        .pulsing-melody { animation: glow-melody 2s infinite ease-in-out; }
+        
+        .action-row { display: flex; gap: 8px; align-items: stretch; }
+        .wide-roll-btn { flex-grow: 10; font-size: clamp(12px, 3vw, 14px); letter-spacing: 1px; padding: 12px; }
+        .small-stack-btn { flex-grow: 1; min-width: 40px; font-size: 14px; }
+
+        .bpm-row {
+            display: inline-flex; align-items: center; gap: 4px; background: var(--input-bg);
+            padding: 4px 6px; border-radius: 6px; border: 1px solid #444; width: fit-content;
+        }
+
+        .bpm-display {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--master-accent);
+            font-size: 14px;
+            font-weight: 800;
+            width: 30px;
+            text-align: center;
+        }
+
+        .master-grid { display: grid; grid-template-columns: auto 1fr 2fr; gap: 10px; align-items: end; }
+
+        @media (max-width: 600px) {
+            .master-grid { grid-template-columns: 1fr 1.5fr; }
+            .master-grid .playback-controls { grid-column: span 2; margin-top: 10px; }
+            .controls { grid-template-columns: repeat(2, 1fr); }
+            .header { flex-direction: column; align-items: flex-start; gap: 8px; }
+            .header .playback-controls { width: 100% !important; }
+        }
+
+        .is-looping {
+            background: #ff0055 !important;
+            color: white !important;
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.5);
+            border: none !important;
+        }
+
+        .license-footer {
+            font-size: 9px;
+            color: var(--text-dim);
+            opacity: 0.5;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            padding: 20px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div id="responsive-scaler">
+    <div id="main-wrapper">
+        <!-- Pretty Rails fi di câbles dem star bredda mon -->
+        <div class="wire-system">
+            <div class="cable rail-v-left"></div>
+            <div class="cable rail-v-right"></div>
+            <div class="cable rail-h-top"></div>
+            <div class="cable rail-h-bottom"></div>
+            
+            <!-- Points de branchement fi di modules dem bredda mon -->
+            <div class="wire-tap" style="left: 0; top: 120px;"></div>
+            <div class="cable-connector" style="left: 15px; top: 116px;"></div>
+            <div class="wire-tap" style="right: 0; top: 350px;"></div>
+            <div class="cable-connector" style="right: 15px; top: 346px;"></div>
+            <div class="wire-tap" style="left: 0; top: 850px;"></div>
+            <div class="cable-connector" style="left: 15px; top: 846px;"></div>
+            <div class="wire-tap" style="right: 0; top: 1250px;"></div>
+            <div class="cable-connector" style="right: 15px; top: 1246px;"></div>
+            <div class="wire-tap" style="left: 0; top: 1650px;"></div>
+            <div class="cable-connector" style="left: 15px; top: 1646px;"></div>
+        </div>
+
+        <div class="global-title-container">
+            <h1>Jennyrave: How the Dice Roll</h1>
+            <span>advance midi generator</span>
+        </div>
+
+        <!-- MASTER TRANSPORT (T) -->
+        <div class="module-panel" id="master-transport">
+            <div class="header">
+                <div class="logo-area">
+                    <svg class="dice-logo" viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="18" fill="#18181b" stroke="#00e676" stroke-width="10"/><text x="50" y="68" font-family="Inter, sans-serif" font-weight="900" font-size="60" fill="#00e676" text-anchor="middle">T</text></svg>
+                    <h1 style="color: #00e676;">MASTER TRANSPORT</h1>
+                </div>
+                <div id="master-led" class="led"></div>
+            </div>
+            <div class="master-grid">
+                <div class="control-group">
+                    <label>SYSTEM TEMPO</label>
+                    <div class="bpm-row">
+                        <span style="font-size: 14px; margin-right: 2px;">🐱</span>
+                        <button style="border:none; background:transparent; padding:0 4px; color:#888;" onclick="adjustBPM(-1)">-</button>
+                        <div class="bpm-display" id="bpm-val">126</div>
+                        <button style="border:none; background:transparent; padding:0 4px; color:#888;" onclick="adjustBPM(1)">+</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>SYSTEM STATUS</label>
+                    <div class="display-screen" style="padding: 7px; height: 32px;">
+                        <div class="display-text" id="master-status" style="font-size: 10px; color: #00e676;">IDLE</div>
+                    </div>
+                </div>
+                <div class="playback-controls" style="grid-template-columns: repeat(3, 1fr);">
+                    <button id="master-play-btn" class="primary-master" onclick="handleFullPlay()">▶ PLAY ALL ONCE</button>
+                    <button id="master-loop-btn" class="primary-master" onclick="toggleLoop('master')">🔁 LOOP ALL PLAY</button>
+                    <button class="primary-stop" onclick="handleGlobalStop()">⏹ STOP ALL</button>
+                </div>
+            </div>
+            <button style="background: #222; margin-top:10px; width: 100%; border-color:#444;" onclick="exportMasterMIDI()">💾 SAVE FULL SESSION (.MID)</button>
+        </div>
+
+        <!-- CHORD DICE (C) -->
+        <div class="module-panel" id="chord-dice">
+            <div class="header">
+                <div class="logo-area">
+                    <svg class="dice-logo" viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="18" fill="#18181b" stroke="#4285f4" stroke-width="10"/><text x="50" y="68" font-family="Inter, sans-serif" font-weight="900" font-size="60" fill="#4285f4" text-anchor="middle">C</text></svg>
+                    <h1 style="color: #4285f4;">JENNYRAVE CHORD DICE</h1>
+                </div>
+                <div id="chord-led" class="led"></div>
+            </div>
+            <div class="controls">
+                <div class="control-group" style="grid-column: span 1;">
+                    <label>ATMOSPHERIC FLAVOR</label>
+                    <select id="mood-select" onchange="handleGlobalStop(); updateProgression();">
+                    </select>
+                </div>
+                <div class="control-group"><label>ROOT KEY</label><select id="key-select" onchange="handleGlobalStop(); updateProgression(); updateAllLines();"><option value="0">C</option><option value="1">C#</option><option value="2">D</option><option value="3">D#</option><option value="4">E</option><option value="5">F</option><option value="6">F#</option><option value="7">G</option><option value="8">G#</option><option value="9" selected>A</option><option value="10" >A#</option><option value="11">B</option></select></div>
+                <div class="control-group"><label>COMPLEXITY</label><select id="complexity-select" onchange="handleGlobalStop(); updateProgression();"><option value="simple">Triad</option><option value="standard" selected>7th Chords</option><option value="jazz_9">9th Voicings</option></select></div>
+                <div class="control-group"><label>STATUS</label><div class="display-screen" style="padding: 7px; height: 32px;"><div class="display-text" id="chord-status" style="font-size: 10px; color: #4285f4;">IDLE</div></div></div>
+            </div>
+            <div class="roll-area-container">
+                <div class="canvas-wrapper"><canvas id="piano-roll"></canvas></div>
+                <div class="scroll-wheel-container">
+                    <div class="scroll-wheel-label">SCROLL UP</div>
+                    <input type="range" class="v-slider" id="chord-scroll-wheel" min="0" max="24" value="0" step="1" oninput="updateProgression()">
+                </div>
+            </div>
+            <div class="display-screen"><div class="display-text" id="chord-names" style="color: var(--accent-color);">---</div></div>
+            <div class="action-row">
+                <button class="small-stack-btn" onclick="handleChordUndo()">↶</button>
+                <button class="primary-chord wide-roll-btn pulsing-chord" id="chord-roll-btn" onclick="handleChordRoll()">🎲 ROLL CHORDS</button>
+                <button class="small-stack-btn" onclick="handleChordRedo()">↷</button>
+            </div>
+            <div class="playback-controls">
+                <button onclick="playLocal('chord')">▶ ONCE</button>
+                <button id="chord-loop-btn" onclick="toggleLoop('chord')">🔁 LOOP</button>
+                <button id="chord-mute-btn" onclick="toggleMute('chord')">🔊 MUTE</button>
+                <button class="btn-stop" onclick="handleGlobalStop()">⏹ STOP</button>
+            </div>
+        </div>
+
+        <!-- SIMPLE MACHINE 1 -->
+        <div class="module-panel simple-machine">
+            <div class="header">
+                <div class="logo-area">
+                    <svg class="dice-logo" viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="18" fill="#18181b" stroke="#00e676" stroke-width="10"/><text x="50" y="68" font-family="Inter, sans-serif" font-weight="900" font-size="60" fill="#00e676" text-anchor="middle">S</text></svg>
+                    <h1 style="color: #00e676; font-size: 12px;">SIMPLE CONTROLLER</h1>
+                </div>
+                <div class="playback-controls" style="grid-template-columns: repeat(3, 1fr); width: 60%;">
+                    <button class="primary-master" onclick="handleFullPlay()">▶ PLAY ALL ONCE</button>
+                    <button class="primary-master" onclick="toggleLoop('master')">🔁 LOOP ALL PLAY</button>
+                    <button class="btn-stop" onclick="handleGlobalStop()">⏹ STOP ALL</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BASS DICE (B) -->
+        <div class="module-panel" id="bass-dice">
+            <div class="header">
+                <div class="logo-area">
+                    <svg class="dice-logo" viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="18" fill="#18181b" stroke="#ff3e00" stroke-width="10"/><text x="50" y="68" font-family="Inter, sans-serif" font-weight="900" font-size="60" fill="#ff3e00" text-anchor="middle">B</text></svg>
+                    <h1 style="color: #ff3e00;">JENNYRAVE BASS DICE</h1>
+                </div>
+                <div id="bass-led" class="led"></div>
+            </div>
+            <div class="controls">
+                <div class="control-group" style="grid-column: span 2;">
+                    <label>LOW-END TEXTURE</label>
+                    <select id="bass-style" onchange="handleGlobalStop(); updateBassline(true);">
+                    </select>
+                </div>
+                <div class="control-group"><label>OCTAVE</label><select id="bass-octave" onchange="handleGlobalStop(); updateBassline(true);"><option value="24">SUB LOW</option><option value="36" selected>DEEP BASS</option></select></div>
+                <div class="control-group"><label>LINK</label><div class="display-screen" style="padding: 7px; height: 32px;"><div class="display-text" id="bass-status" style="font-size: 10px; color: #ff3e00;">EMPTY</div></div></div>
+            </div>
+            <div class="roll-area-container"><div class="canvas-wrapper"><canvas id="bass-roll"></canvas></div><div class="scroll-wheel-container"><div class="scroll-wheel-label">SCROLL</div><input type="range" class="v-slider" id="bass-scroll-wheel" min="0" max="24" value="0" step="1" oninput="updateBassline(false)"></div></div>
+            <div class="action-row">
+                <button class="small-stack-btn" disabled>↶</button>
+                <button class="primary-bass wide-roll-btn pulsing-bass" id="bass-roll-btn" onclick="handleBassRoll()">🎲 ROLL BASS</button>
+                <button class="small-stack-btn" disabled>↷</button>
+            </div>
+            <div class="playback-controls">
+                <button onclick="playLocal('bass')">▶ ONCE</button>
+                <button id="bass-loop-btn" onclick="toggleLoop('bass')">🔁 LOOP</button>
+                <button id="bass-mute-btn" onclick="toggleMute('bass')">🔊 MUTE</button>
+                <button class="btn-stop" onclick="handleGlobalStop()">⏹ STOP</button>
+            </div>
+        </div>
+
+        <!-- SIMPLE MACHINE 2 -->
+        <div class="module-panel simple-machine">
+            <div class="header">
+                <div class="logo-area">
+                    <svg class="dice-logo" viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="18" fill="#18181b" stroke="#00e676" stroke-width="10"/><text x="50" y="68" font-family="Inter, sans-serif" font-weight="900" font-size="60" fill="#00e676" text-anchor="middle">S</text></svg>
+                    <h1 style="color: #00e676; font-size: 12px;">SIMPLE CONTROLLER</h1>
+                </div>
+                <div class="playback-controls" style="grid-template-columns: repeat(3, 1fr); width: 60%;">
+                    <button class="primary-master" onclick="handleFullPlay()">▶ PLAY ALL ONCE</button>
+                    <button class="primary-master" onclick="toggleLoop('master')">🔁 LOOP ALL PLAY</button>
+                    <button class="btn-stop" onclick="handleGlobalStop()">⏹ STOP ALL</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ARP DICE (A) -->
+        <div class="module-panel" id="arp-dice">
+            <div class="header">
+                <div class="logo-area">
+                    <svg class="dice-logo" viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="18" fill="#18181b" stroke="#ffd600" stroke-width="10"/><text x="50" y="68" font-family="Inter, sans-serif" font-weight="900" font-size="60" fill="#ffd600" text-anchor="middle">A</text></svg>
+                    <h1 style="color: #ffd600;">JENNYRAVE ARP DICE</h1>
+                </div>
+                <div id="arp-led" class="led"></div>
+            </div>
+            <div class="controls">
+                <div class="control-group" style="grid-column: span 1;">
+                    <label>MATHEMATICAL MOTION</label>
+                    <select id="arp-style" onchange="handleGlobalStop(); updateArpLine(true);">
+                    </select>
+                </div>
+                <div class="control-group"><label>RATE</label><select id="arp-rate" onchange="handleGlobalStop(); updateArpLine(true);"><option value="8">1/8</option><option value="16" selected>1/16</option><option value="32">1/32</option></select></div>
+                <div class="control-group"><label>OCTAVE</label><select id="arp-octave" onchange="handleGlobalStop(); updateArpLine(true);"><option value="48">LOW</option><option value="60" selected>MID</option><option value="72">HIGH</option></select></div>
+                <div class="control-group"><label>STATUS</label><div class="display-screen" style="padding: 7px; height: 32px;"><div class="display-text" id="arp-status" style="font-size: 10px; color: #ffd600;">EMPTY</div></div></div>
+            </div>
+            <div class="roll-area-container"><div class="canvas-wrapper"><canvas id="arp-roll"></canvas></div><div class="scroll-wheel-container"><div class="scroll-wheel-label">SCROLL</div><input type="range" class="v-slider" id="arp-scroll-wheel" min="0" max="24" value="0" step="1" oninput="updateArpLine(false)"></div></div>
+            <div class="action-row">
+                <button class="small-stack-btn" disabled>↶</button>
+                <button class="primary-arp wide-roll-btn pulsing-arp" id="arp-roll-btn" onclick="handleArpRoll()">🎲 ROLL ARP</button>
+                <button class="small-stack-btn" disabled>↷</button>
+            </div>
+            <div class="playback-controls">
+                <button onclick="playLocal('arp')">▶ ONCE</button>
+                <button id="arp-loop-btn" onclick="toggleLoop('arp')">🔁 LOOP</button>
+                <button id="arp-mute-btn" onclick="toggleMute('arp')">🔊 MUTE</button>
+                <button class="btn-stop" onclick="handleGlobalStop()">⏹ STOP</button>
+            </div>
+        </div>
+
+        <!-- SIMPLE MACHINE 3 -->
+        <div class="module-panel simple-machine">
+            <div class="header">
+                <div class="logo-area">
+                    <svg class="dice-logo" viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="18" fill="#18181b" stroke="#00e676" stroke-width="10"/><text x="50" y="68" font-family="Inter, sans-serif" font-weight="900" font-size="60" fill="#00e676" text-anchor="middle">S</text></svg>
+                    <h1 style="color: #00e676; font-size: 12px;">SIMPLE CONTROLLER</h1>
+                </div>
+                <div class="playback-controls" style="grid-template-columns: repeat(3, 1fr); width: 60%;">
+                    <button class="primary-master" onclick="handleFullPlay()">▶ PLAY ALL ONCE</button>
+                    <button class="primary-master" onclick="toggleLoop('master')">🔁 LOOP ALL PLAY</button>
+                    <button class="btn-stop" onclick="handleGlobalStop()">⏹ STOP ALL</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MELODY DICE (M) -->
+        <div class="module-panel" id="melody-dice">
+            <div class="header">
+                <div class="logo-area">
+                    <svg class="dice-logo" viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="18" fill="#18181b" stroke="#ff00ff" stroke-width="10"/><text x="50" y="68" font-family="Inter, sans-serif" font-weight="900" font-size="60" fill="#ff00ff" text-anchor="middle">M</text></svg>
+                    <h1 style="color: #ff00ff;">JENNYRAVE MELODY DICE</h1>
+                </div>
+                <div id="melody-led" class="led"></div>
+            </div>
+            <div class="controls">
+                <div class="control-group" style="grid-column: span 1;">
+                    <label>EXPRESSION ENGINE</label>
+                    <select id="melody-style" onchange="handleGlobalStop(); updateMelodyLine(true);">
+                    </select>
+                </div>
+                <div class="control-group"><label>DENSITY</label><select id="melody-density" onchange="handleGlobalStop(); updateMelodyLine(true);"><option value="low">SPARSE</option><option value="mid" selected>NORMAL</option><option value="high">DENSE</option></select></div>
+                <div class="control-group"><label>OCTAVE</label><select id="melody-octave" onchange="handleGlobalStop(); updateMelodyLine(true);"><option value="60">LEAD</option><option value="72" selected>AIR</option></select></div>
+                <div class="control-group"><label>STATUS</label><div class="display-screen" style="padding: 7px; height: 32px;"><div class="display-text" id="melody-status" style="font-size: 10px; color: #ff00ff;">EMPTY</div></div></div>
+            </div>
+            <div class="roll-area-container"><div class="canvas-wrapper"><canvas id="melody-roll"></canvas></div><div class="scroll-wheel-container"><div class="scroll-wheel-label">SCROLL</div><input type="range" class="v-slider" id="melody-scroll-wheel" min="0" max="24" value="0" step="1" oninput="updateMelodyLine(false)"></div></div>
+            <div class="action-row">
+                <button class="small-stack-btn" disabled>↶</button>
+                <button class="primary-melody wide-roll-btn pulsing-melody" id="melody-roll-btn" onclick="handleMelodyRoll()">🎲 ROLL MELODY</button>
+                <button class="small-stack-btn" disabled>↷</button>
+            </div>
+            <div class="playback-controls">
+                <button onclick="playLocal('melody')">▶ ONCE</button>
+                <button id="melody-loop-btn" onclick="toggleLoop('melody')">🔁 LOOP</button>
+                <button id="melody-mute-btn" onclick="toggleMute('melody')">🔊 MUTE</button>
+                <button class="btn-stop" onclick="handleGlobalStop()">⏹ STOP</button>
+            </div>
+        </div>
+
+        <!-- SIMPLE MACHINE 4 -->
+        <div class="module-panel simple-machine">
+            <div class="header">
+                <div class="logo-area">
+                    <svg class="dice-logo" viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="18" fill="#18181b" stroke="#00e676" stroke-width="10"/><text x="50" y="68" font-family="Inter, sans-serif" font-weight="900" font-size="60" fill="#00e676" text-anchor="middle">S</text></svg>
+                    <h1 style="color: #00e676; font-size: 12px;">SIMPLE CONTROLLER</h1>
+                </div>
+                <div class="playback-controls" style="grid-template-columns: repeat(3, 1fr); width: 60%;">
+                    <button class="primary-master" onclick="handleFullPlay()">▶ PLAY ALL ONCE</button>
+                    <button class="primary-master" onclick="toggleLoop('master')">🔁 LOOP ALL PLAY</button>
+                    <button class="btn-stop" onclick="handleGlobalStop()">⏹ STOP ALL</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="license-footer">GPL-3.0 license</div>
+    </div>
+</div>
+
+<script>
+    // Logic fi keep di riddim scale fi les petits écrans star bredda mon
+    function handleScaling() {
+        const scaler = document.getElementById('responsive-scaler');
+        const wrapper = document.getElementById('main-wrapper');
+        const windowWidth = window.innerWidth;
+        const baseWidth = 1000; 
+
+        if (windowWidth < baseWidth) {
+            const scaleFactor = (windowWidth / baseWidth) * 0.98; 
+            scaler.style.transform = `scale(${scaleFactor})`;
+            const scaledHeight = wrapper.offsetHeight * scaleFactor;
+            scaler.style.height = `${scaledHeight}px`;
+        } else {
+            scaler.style.transform = 'none';
+            scaler.style.height = 'auto';
+        }
+    }
+
+    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    let nextLoopTime = 0; 
+    
+    // Machine Vibe Storage - Keepin' it steady star bredda mon
+    let currentBassRhythm = null;
+    let currentArpDir = 'up';
+    let currentMelodyStructure = [];
+
+    // Flags fi vérifier si on a déjà roll di dice, bumbaclot star!
+    let isArpRolled = false;
+    let isBassRolled = false;
+    let isMelodyRolled = false;
+
+    // History fi di chords - rewind star bredda!
+    let chordHistory = [];
+    let historyIndex = -1;
+
+    const progressionPool = [
+        "I - V - vi - IV", "i - VI - III - VII", "I - vi - IV - V", "I - IV - V - I", "ii - V - I - IV",
+        "I - bVII - IV - I", "vi - IV - I - V", "I - iii - IV - V", "i - v - iv - i", "I - VI - IV - V",
+        "ii - V - iii - vi", "I - IV - vi - V", "i - VII - VI - v", "I - II - IV - I", "I - V - IV - V"
+    ];
+
+    const bassRhythms = [
+        [[0, 0.5], [1, 0.5], [2, 0.5], [3, 0.5]],
+        [[0, 0.75], [1.5, 0.25], [2, 0.75], [3.5, 0.25]],
+        [[0, 0.25], [0.5, 0.25], [1, 0.25], [1.5, 0.25], [2, 0.25], [2.5, 0.25], [3, 0.25], [3.5, 0.25]],
+        [[0, 1.0], [2, 1.0]],
+        [[0.5, 0.25], [1.5, 0.25], [2.5, 0.25], [3.5, 0.25]]
+    ];
+
+    // Build di presets fi di sélecteurs youth bredda mon
+    const buildPresets = () => {
+        const selects = {
+            mood: { el: document.getElementById('mood-select'), cats: ["Major", "Minor", "Jazz", "Blues", "Cinematic", "Neo-Soul", "Techno", "Ambient"] },
+            bass: { el: document.getElementById('bass-style'), cats: ["Driving", "Syncopated", "Sub-Bass", "Acidic", "Slap", "Minimal"] },
+            arp: { el: document.getElementById('arp-style'), cats: ["Classical", "Mathematical", "Complex", "Ghostly", "Orbiting"] },
+            mel: { el: document.getElementById('melody-style'), cats: ["Motif", "Legato", "Jazz-Lick", "Cinematic", "Soulful", "Digital"] }
+        };
+        const atmos = ["Midnight", "Solar", "Velvet", "Ethereal", "Urban", "Glacial", "Electric", "Dusty", "Golden", "Neon", "Lunar", "Cyber", "Rustic", "Emerald", "Obsidian"];
+        const noun = ["Horizon", "Flare", "Dream", "Gloom", "Hustle", "Peak", "Vibe", "Memories", "Gate", "Echo", "Portal", "Tide", "Vortex", "Symmetry", "Ghost"];
+
+        Object.keys(selects).forEach(key => {
+            const data = selects[key];
+            data.cats.forEach(cat => {
+                const group = document.createElement('optgroup'); group.label = cat;
+                for(let i=0; i<25; i++) {
+                    const opt = document.createElement('option');
+                    const name = `${cat}: ${atmos[Math.floor(Math.random()*atmos.length)]} ${noun[Math.floor(Math.random()*noun.length)]}`;
+                    opt.value = `${cat.toLowerCase()}_${i}`; opt.innerText = name;
+                    group.appendChild(opt);
+                }
+                data.el.appendChild(group);
+            });
+        });
+    };
+
+    const romanToIntervals = {
+        "I": [0, 4, 7], "i": [0, 3, 7], "II": [2, 6, 9], "ii": [2, 5, 9],
+        "III": [4, 8, 11], "iii": [4, 7, 11], "IV": [5, 9, 12], "iv": [5, 8, 12],
+        "V": [7, 11, 14], "v": [7, 10, 14], "VI": [9, 13, 16], "vi": [9, 12, 16],
+        "VII": [11, 15, 18], "vii": [11, 14, 18], "bII": [1, 5, 8], "bIII": [3, 7, 10], 
+        "bVI": [8, 12, 15], "bVII": [10, 14, 17]
+    };
+
+    let audioCtx = null, bpm = 126, lastProgString = "", currentProgression = [], currentBassline = [], currentArpLine = [], currentMelodyLine = [];
+    let loopingType = null, loopTimeout = null, activeOscillators = [];
+    let mutes = { chord: false, bass: false, arp: false, melody: false };
+    
+    let canvas, ctx, bassCanvas, bassCtx, arpCanvas, arpCtx, melodyCanvas, melodyCtx;
+    let ledChord, ledBass, ledArp, ledMelody, ledMaster, bpmDisplay;
+
+    function init() {
+        canvas = document.getElementById('piano-roll'); ctx = canvas.getContext('2d', { alpha: false });
+        bassCanvas = document.getElementById('bass-roll'); bassCtx = bassCanvas.getContext('2d', { alpha: false });
+        arpCanvas = document.getElementById('arp-roll'); arpCtx = arpCanvas.getContext('2d', { alpha: false });
+        melodyCanvas = document.getElementById('melody-roll'); melodyCtx = melodyCanvas.getContext('2d', { alpha: false });
+        ledChord = document.getElementById('chord-led'); ledBass = document.getElementById('bass-led'); 
+        ledArp = document.getElementById('arp-led'); ledMelody = document.getElementById('melody-led'); 
+        ledMaster = document.getElementById('master-led'); bpmDisplay = document.getElementById('bpm-val');
+        buildPresets();
+        
+        window.addEventListener('resize', () => { 
+            handleScaling();
+            resizeCanvas(canvas, ctx); 
+            resizeCanvas(bassCanvas, bassCtx); 
+            resizeCanvas(arpCanvas, arpCtx); 
+            resizeCanvas(melodyCanvas, melodyCtx); 
+        });
+        
+        handleScaling();
+        resizeCanvas(canvas, ctx); resizeCanvas(bassCanvas, bassCtx); resizeCanvas(arpCanvas, arpCtx); resizeCanvas(melodyCanvas, melodyCtx);
+    }
+
+    // Initialiser di audio star bredda mon
+    function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    function stopAllAudio() { if (loopTimeout) clearTimeout(loopTimeout); activeOscillators.forEach(item => { try { item.osc.stop(); } catch(e) {} }); activeOscillators = []; stopAllLEDs(); }
+    function stopAllLEDs() { [ledChord, ledBass, ledArp, ledMelody, ledMaster].forEach(l => { if(l) l.style.background = "#333"; }); }
+
+    function toggleMute(type) {
+        mutes[type] = !mutes[type];
+        const btn = document.getElementById(`${type}-mute-btn`);
+        if (mutes[type]) { btn.classList.add('is-muted-active'); btn.innerText = "🔇 MUTED"; }
+        else { btn.classList.remove('is-muted-active'); btn.innerText = "🔊 MUTE"; }
+    }
+
+    function showStatusWarning(id, originalText, color) {
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.innerText = "ROLL CHORDS FIRST mon!"; el.style.color = "#ff5252";
+        setTimeout(() => { el.innerText = originalText; el.style.color = color; }, 2000);
+    }
+
+    function showMasterWarning(msg) {
+        const el = document.getElementById('master-status');
+        const originalText = "IDLE";
+        const originalColor = "#00e676";
+        el.innerText = msg;
+        el.style.color = "#ff5252";
+        setTimeout(() => {
+            el.innerText = originalText;
+            el.style.color = originalColor;
+        }, 3000);
+    }
+
+    // Arrête tout star bredda mon!
+    function handleGlobalStop() {
+        loopingType = null; nextLoopTime = 0;
+        document.querySelectorAll('.is-looping').forEach(el => {
+            el.classList.remove('is-looping');
+            el.innerText = el.id.includes('master') ? "🔁 LOOP ALL PLAY" : "🔁 LOOP";
+        });
+        document.getElementById('master-status').innerText = "STOPPED";
+        setTimeout(() => {
+            if (!loopingType) document.getElementById('master-status').innerText = "IDLE";
+        }, 1500);
+        stopAllAudio();
+    }
+
+    function adjustBPM(v) { bpm = Math.max(20, Math.min(300, bpm + v)); bpmDisplay.innerText = bpm; }
+    
+    // Dessiner tous di piano rolls fi di visuel dem star bredda mon
+    function drawAll() { 
+        const cScroll = document.getElementById('chord-scroll-wheel') ? parseInt(document.getElementById('chord-scroll-wheel').value) : 0;
+        draw(canvas, ctx, currentProgression, 48 + cScroll, '#4285f4', 4);
+        const bScroll = document.getElementById('bass-scroll-wheel') ? parseInt(document.getElementById('bass-scroll-wheel').value) : 0;
+        draw(bassCanvas, bassCtx, currentBassline, 24 + bScroll, '#ff0000', 64, true);
+        const aScroll = document.getElementById('arp-scroll-wheel') ? parseInt(document.getElementById('arp-scroll-wheel').value) : 0;
+        draw(arpCanvas, arpCtx, currentArpLine, 36 + aScroll, '#ffd600', 64, true);
+        const mScroll = document.getElementById('melody-scroll-wheel') ? parseInt(document.getElementById('melody-scroll-wheel').value) : 0;
+        const mOct = parseInt(document.getElementById('melody-octave').value);
+        draw(melodyCanvas, melodyCtx, currentMelodyLine, mOct - 6 + mScroll, '#ff00ff', 64, true);
+    }
+
+    function addToHistory(state) {
+        if (historyIndex < chordHistory.length - 1) {
+            chordHistory = chordHistory.slice(0, historyIndex + 1);
+        }
+        chordHistory.push(state);
+        historyIndex++;
+    }
+
+    function handleChordUndo() {
+        if (historyIndex > 0) {
+            historyIndex--;
+            loadHistoryState();
+        }
+    }
+
+    function handleChordRedo() {
+        if (historyIndex < chordHistory.length - 1) {
+            historyIndex++;
+            loadHistoryState();
+        }
+    }
+
+    function loadHistoryState() {
+        const state = chordHistory[historyIndex];
+        lastProgString = state.prog;
+        document.getElementById('complexity-select').value = state.comp;
+        updateProgression();
+    }
+
+    // Roll di chords star bredda mon !
+    function handleChordRoll() { 
+        initAudio(); handleGlobalStop(); 
+        const btn = document.getElementById('chord-roll-btn'); if(btn) btn.classList.remove('pulsing-chord');
+        lastProgString = progressionPool[Math.floor(Math.random() * progressionPool.length)]; 
+        const comp = document.getElementById('complexity-select');
+        const compOptions = ['simple', 'standard', 'jazz_9'];
+        comp.value = compOptions[Math.floor(Math.random() * compOptions.length)];
+        
+        addToHistory({ prog: lastProgString, comp: comp.value });
+        updateProgression(); 
+        document.getElementById('chord-status').innerText = "ACTIVE";
+    }
+
+    // Mettre à jour di riddim progression star bredda mon
+    function updateProgression() {
+        if (!lastProgString) return;
+        const key = parseInt(document.getElementById('key-select').value);
+        const baseMidi = 48 + key;
+        currentProgression = lastProgString.split(' - ').map(part => {
+            const clean = part.replace(/7|maj7|9|alt/g, '');
+            let ivs = [...(romanToIntervals[clean] || [0, 4, 7])];
+            const compVal = document.getElementById('complexity-select').value;
+            if (compVal === 'standard') ivs.push(ivs[0] + 10);
+            if (compVal === 'jazz_9') ivs.push(ivs[0] + 10, ivs[0] + 14);
+            return ivs.map(o => baseMidi + o);
+        });
+        document.getElementById('chord-names').innerText = `${noteNames[key]} ${lastProgString}`;
+        
+        const cScroll = document.getElementById('chord-scroll-wheel') ? parseInt(document.getElementById('chord-scroll-wheel').value) : 0;
+        draw(canvas, ctx, currentProgression, 48 + cScroll, '#4285f4', 4);
+        
+        if (isBassRolled) updateBassline(true);
+        if (isArpRolled) updateArpLine(true);
+        if (isMelodyRolled) updateMelodyLine(true);
+    }
+
+    // Roll di heavy bass star youth bredda mon
+    function handleBassRoll() { 
+        if (!currentProgression.length) { showStatusWarning('bass-status', 'EMPTY star!', '#ff3e00'); return; }
+        const btn = document.getElementById('bass-roll-btn'); if(btn) btn.classList.remove('pulsing-bass');
+        isBassRolled = true;
+        currentBassRhythm = bassRhythms[Math.floor(Math.random() * bassRhythms.length)];
+        initAudio(); handleGlobalStop(); 
+        updateBassline(true); 
+        document.getElementById('bass-status').innerText = "ACTIVE";
+    }
+    
+    function updateBassline(regenerate = false) {
+        if (!currentProgression.length || !isBassRolled) return;
+        const baseOct = parseInt(document.getElementById('bass-octave').value);
+        const scroll = parseInt(document.getElementById('bass-scroll-wheel').value);
+        
+        if (regenerate) {
+            const rhythm = currentBassRhythm || bassRhythms[0];
+            currentBassline = [];
+            currentProgression.forEach((chord, i) => {
+                if (chord && chord.length > 0) {
+                    const root = chord[0] - 48 + baseOct; 
+                    rhythm.forEach(step => {
+                        currentBassline.push({midi: root, step: i * 4 + step[0], dur: step[1]});
+                    });
+                }
+            });
+        }
+        draw(bassCanvas, bassCtx, currentBassline, 24 + scroll, '#ff0000', 64, true);
+    }
+
+    // Roll di quick arp star youth bredda mon
+    function handleArpRoll() { 
+        if (!currentProgression.length) { showStatusWarning('arp-status', 'EMPTY star!', '#ffd600'); return; }
+        const btn = document.getElementById('arp-roll-btn'); if(btn) btn.classList.remove('pulsing-arp');
+        isArpRolled = true;
+        const directions = ['up', 'down', 'random', 'converge'];
+        currentArpDir = directions[Math.floor(Math.random() * directions.length)];
+        initAudio(); handleGlobalStop(); 
+        const rates = ['8', '16', '32'];
+        document.getElementById('arp-rate').value = rates[Math.floor(Math.random() * rates.length)];
+        updateArpLine(true); 
+        document.getElementById('arp-status').innerText = "ACTIVE";
+    }
+
+    function updateArpLine(regenerate = false) {
+        if (!currentProgression.length || !isArpRolled) return;
+        const rate = parseInt(document.getElementById('arp-rate').value);
+        const baseOct = parseInt(document.getElementById('arp-octave').value);
+        const scroll = parseInt(document.getElementById('arp-scroll-wheel').value);
+        
+        if (regenerate) {
+            const dir = currentArpDir || 'up';
+            currentArpLine = []; const stepSize = 4 / rate;
+            currentProgression.forEach((chord, bar) => {
+                if (chord && chord.length > 0) {
+                    let notes = chord.map(n => n - 48 + baseOct);
+                    if(dir === 'down') notes.reverse();
+                    for(let s=0; s<rate; s++) { 
+                        let pitch;
+                        if(dir === 'random') pitch = notes[Math.floor(Math.random() * notes.length)];
+                        else pitch = notes[s % notes.length];
+                        currentArpLine.push({midi: pitch, step: bar * 4 + s * stepSize, dur: stepSize * 0.8}); 
+                    }
+                }
+            });
+        }
+        draw(arpCanvas, arpCtx, currentArpLine, 36 + scroll, '#ffd600', 64, true);
+    }
+
+    // Roll di singer star youth bredda mon
+    function handleMelodyRoll() { 
+        if (!currentProgression.length) { showStatusWarning('melody-status', 'EMPTY star!', '#ff00ff'); return; }
+        const btn = document.getElementById('melody-roll-btn'); if(btn) btn.classList.remove('pulsing-melody');
+        isMelodyRolled = true;
+        const densityVal = document.getElementById('melody-density').value;
+        const densityThreshold = densityVal === 'low' ? 0.3 : (densityVal === 'high' ? 0.7 : 0.5);
+
+        currentMelodyStructure = [];
+        for (let barIdx = 0; barIdx < 4; barIdx++) {
+            let s = 0;
+            while(s < 16) {
+                if (Math.random() < densityThreshold) {
+                    let toneIdx = Math.floor(Math.random() * 4);
+                    let length = [1, 2, 4][Math.floor(Math.random()*3)];
+                    if (s + length > 16) length = 16 - s;
+                    currentMelodyStructure.push({ bar: barIdx, stepInBar: s * 0.25, dur: length * 0.25, toneIdx });
+                    s += length;
+                } else { s += 1; }
+            }
+        }
+        initAudio(); handleGlobalStop(); 
+        updateMelodyLine(true); 
+        document.getElementById('melody-status').innerText = "ACTIVE";
+    }
+
+    function updateMelodyLine(regenerate = false) {
+        if (!currentProgression.length || !isMelodyRolled) return;
+        const baseOct = parseInt(document.getElementById('melody-octave').value);
+        const scroll = parseInt(document.getElementById('melody-scroll-wheel').value);
+        
+        if (regenerate) {
+            currentMelodyLine = [];
+            currentMelodyStructure.forEach(item => {
+                const barChord = currentProgression[item.bar] || currentProgression[0];
+                if (barChord && barChord.length > 0) {
+                    const rawMidi = barChord[item.toneIdx % barChord.length];
+                    const diatonicMidi = (rawMidi % 12) + baseOct;
+                    
+                    if (Number.isFinite(diatonicMidi)) {
+                        currentMelodyLine.push({ midi: diatonicMidi, step: item.bar * 4 + item.stepInBar, dur: item.dur });
+                    }
+                }
+            });
+        }
+        draw(melodyCanvas, melodyCtx, currentMelodyLine, baseOct - 6 + scroll, '#ff00ff', 64, true);
+    }
+
+    function resizeCanvas(c, x) { 
+        const dpr = window.devicePixelRatio || 1; 
+        if (!c.parentElement) return;
+        c.width = c.parentElement.clientWidth * dpr; c.height = dpr * c.parentElement.clientHeight; 
+        x.setTransform(dpr, 0, 0, dpr, 0, 0); drawAll();
+    }
+
+    function draw(c, x, data, offset, color, colCount) {
+        if(!c || !x) return;
+        const dpr = window.devicePixelRatio || 1, w = c.width/dpr, h = c.height/dpr;
+        x.fillStyle = "#0a0a0c"; x.fillRect(0, 0, w, h);
+        const sw = 35, rows = 24, cellH = h/rows, cellW = (w-sw)/colCount;
+        for(let i=0; i<rows; i++) {
+            const y = h - (i*cellH) - cellH, pitch = i + offset;
+            x.fillStyle = [1, 3, 6, 8, 10].includes(pitch % 12) ? "#0e0e11" : "#141418"; x.fillRect(sw, y, w-sw, cellH);
+            x.fillStyle = [1, 3, 6, 8, 10].includes(pitch % 12) ? "#222" : "#ccc"; x.fillRect(0, y, sw, cellH);
+        }
+        for(let j=0; j<=colCount; j++) {
+            const gx = sw + j * cellW;
+            x.strokeStyle = (j % 16 === 0) ? "#555" : (j % 4 === 0 ? "#333" : "#1a1a1a");
+            x.lineWidth = (j % 16 === 0) ? 1.5 : 1; x.beginPath(); x.moveTo(gx, 0); x.lineTo(gx, h); x.stroke();
+        }
+        if (Array.isArray(data)) {
+            data.forEach(noteItem => {
+                if (Array.isArray(noteItem)) {
+                    const colIdx = data.indexOf(noteItem);
+                    noteItem.forEach(midi => {
+                        const relP = midi - offset; if (relP >= 0 && relP < rows) {
+                            const y = h - (relP*cellH) - cellH; x.fillStyle = color; x.fillRect(sw + colIdx * (w-sw)/4 + 1, y+1, (w-sw)/4 - 2, cellH-2);
+                        }
+                    });
+                } else if (noteItem && typeof noteItem.midi === 'number') {
+                    const relP = noteItem.midi - offset; if (relP >= 0 && relP < rows) {
+                        const y = h - (relP * cellH) - cellH;
+                        const startX = sw + (noteItem.step / 16) * (w - sw); const noteWidth = (noteItem.dur / 16) * (w - sw);
+                        x.fillStyle = color; x.fillRect(startX + 1, y + 1, noteWidth - 2, cellH - 2);
+                        x.fillStyle = "rgba(255,255,255,0.2)"; x.fillRect(startX + 1, y + 1, noteWidth - 2, (cellH - 2) / 2);
+                    }
+                }
+            });
+        }
+    }
+
+    // Jouer di actual sound star ! youth bredda mon
+    function playNote(f, s, d, t, v, type) { 
+        if (!audioCtx || !Number.isFinite(f) || !Number.isFinite(s) || !Number.isFinite(d)) return;
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.type = t; 
+        try {
+            o.frequency.setValueAtTime(f, s); 
+            g.gain.setValueAtTime(0, s); 
+            g.gain.linearRampToValueAtTime(v, s + 0.01); 
+            g.gain.exponentialRampToValueAtTime(0.001, s + d - 0.01); 
+            o.connect(g); g.connect(audioCtx.destination); o.start(s); o.stop(s + d + 0.1); 
+            activeOscillators.push({ osc: o, type: type }); 
+        } catch (err) {}
+    }
+
+    async function toggleLoop(type) {
+        initAudio(); if (audioCtx.state === 'suspended') await audioCtx.resume();
+        if (type === 'master' && currentProgression.length === 0) {
+            showMasterWarning("NOTHING TO PLAY, ROLL CHORDS FIRST star bredda mon!");
+            return;
+        }
+        const targetState = loopingType === type ? null : type;
+        handleGlobalStop(); loopingType = targetState;
+        if (loopingType) { 
+            const btn = document.getElementById(`${loopingType}-loop-btn`); if (btn) { btn.innerText = "⏹ STOP LOOP"; btn.classList.add('is-looping'); }
+            if (loopingType === 'master') document.getElementById('master-status').innerText = "LOOPING ALL";
+            startLoopCycle(); 
+        }
+    }
+
+    function startLoopCycle() {
+        if (!loopingType || !audioCtx) return;
+        const bl = 60 / bpm;
+        if (!Number.isFinite(bl)) return;
+        if (nextLoopTime === 0 || nextLoopTime < audioCtx.currentTime) { nextLoopTime = audioCtx.currentTime + 0.05; }
+        const startTime = nextLoopTime;
+        const pChord = ['master', 'chord'].includes(loopingType);
+        const pBass = ['master', 'bass'].includes(loopingType);
+        const pArp = ['master', 'arp'].includes(loopingType);
+        const pMelody = ['master', 'melody'].includes(loopingType);
+        
+        if (pChord && !mutes.chord && currentProgression.length) { 
+            ledChord.style.background = "#4285f4"; 
+            currentProgression.forEach((chordGroup, barIndex) => {
+                chordGroup.forEach(midiNote => playNote(440*Math.pow(2,(midiNote-69)/12), startTime + barIndex*4*bl, 4*bl, 'triangle', 0.08, 'chords'));
+            });
+        }
+        if (pBass && !mutes.bass && currentBassline.length) { 
+            ledBass.style.background = "#ff3e00"; 
+            currentBassline.forEach(noteObj => playNote(440*Math.pow(2,(noteObj.midi-69)/12), startTime + noteObj.step*bl, noteObj.dur*bl, 'sine', 0.2, 'bass')); 
+        }
+        if (pArp && !mutes.arp && currentArpLine.length) { 
+            ledArp.style.background = "#ffd600"; 
+            currentArpLine.forEach(noteObj => playNote(440*Math.pow(2,(noteObj.midi-69)/12), startTime + noteObj.step*bl, noteObj.dur*bl, 'square', 0.05, 'arp')); 
+        }
+        if (pMelody && !mutes.melody && currentMelodyLine.length) { 
+            ledMelody.style.background = "#ff00ff"; 
+            currentMelodyLine.forEach(noteObj => playNote(440*Math.pow(2,(noteObj.midi-69)/12), startTime + noteObj.step*bl, noteObj.dur*bl, 'square', 0.15, 'melody')); 
+        }
+        if (loopingType === 'master') ledMaster.style.background = "#00e676";
+        
+        nextLoopTime += 16 * bl;
+        loopTimeout = setTimeout(startLoopCycle, (16 * bl - 0.1) * 1000); 
+    }
+
+    async function playLocal(mode) {
+        handleGlobalStop(); stopAllAudio(); initAudio(); if (audioCtx.state === 'suspended') await audioCtx.resume();
+        const now = audioCtx.currentTime + 0.1, bl = 60/bpm;
+        if (!Number.isFinite(bl)) return;
+        if (mode === 'chord' && currentProgression.length) { 
+            ledChord.style.background = "#4285f4"; 
+            currentProgression.forEach((chordGroup, barIndex) => chordGroup.forEach(midiNote => playNote(440*Math.pow(2,(midiNote-69)/12), now + barIndex*4*bl, 4*bl, 'triangle', 0.1, 'chords'))); 
+        }
+        else if (mode === 'bass' && currentBassline.length) { 
+            ledBass.style.background = "#ff3e00"; 
+            currentBassline.forEach(noteObj => playNote(440*Math.pow(2,(noteObj.midi-69)/12), now + noteObj.step*bl, noteObj.dur*bl, 'sine', 0.25, 'bass')); 
+        }
+        else if (mode === 'arp' && currentArpLine.length) { 
+            ledArp.style.background = "#ffd600"; 
+            currentArpLine.forEach(noteObj => playNote(440*Math.pow(2,(noteObj.midi-69)/12), now + noteObj.step*bl, noteObj.dur*bl, 'square', 0.08, 'arp')); 
+        }
+        else if (mode === 'melody' && currentMelodyLine.length) { 
+            ledMelody.style.background = "#ff00ff"; 
+            currentMelodyLine.forEach(noteObj => playNote(440*Math.pow(2,(noteObj.midi-69)/12), now + noteObj.step*bl, noteObj.dur*bl, 'square', 0.18, 'melody')); 
+        }
+        setTimeout(stopAllLEDs, 16*bl*1000);
+    }
+
+    async function handleFullPlay() {
+        initAudio(); if (audioCtx.state === 'suspended') await audioCtx.resume();
+        if (currentProgression.length === 0) {
+            showMasterWarning("NOTHING TO PLAY star bredda mon, ROLL DI DICE!");
+            return;
+        }
+        handleGlobalStop(); stopAllAudio();
+        const now = audioCtx.currentTime + 0.1, bl = 60/bpm;
+        if (!Number.isFinite(bl)) return;
+        document.getElementById('master-status').innerText = "PLAYING ALL";
+        if(!mutes.chord && currentProgression.length) ledChord.style.background = "#4285f4"; if(!mutes.bass && currentBassline.length) ledBass.style.background = "#ff3e00"; 
+        if(!mutes.arp && currentArpLine.length) ledArp.style.background = "#ffd600"; if(!mutes.melody && currentMelodyLine.length) ledMelody.style.background = "#ff00ff";
+        ledMaster.style.background = "#00e676";
+        
+        currentProgression.forEach((chordGroup, barIndex) => !mutes.chord && chordGroup.forEach(midiNote => playNote(440*Math.pow(2,(midiNote-69)/12), now + barIndex*4*bl, 4*bl, 'triangle', 0.08, 'chords')));
+        currentBassline.forEach(noteObj => !mutes.bass && playNote(440*Math.pow(2,(noteObj.midi-69)/12), now + noteObj.step*bl, noteObj.dur*bl, 'sine', 0.18, 'bass'));
+        currentArpLine.forEach(noteObj => !mutes.arp && playNote(440*Math.pow(2,(noteObj.midi-69)/12), now + noteObj.step*bl, noteObj.dur*bl, 'square', 0.05, 'arp'));
+        currentMelodyLine.forEach(noteObj => !mutes.melody && playNote(440*Math.pow(2,(noteObj.midi-69)/12), now + noteObj.step*bl, noteObj.dur*bl, 'square', 0.15, 'melody'));
+        
+        setTimeout(() => {
+            stopAllLEDs();
+            if (!loopingType) document.getElementById('master-status').innerText = "IDLE";
+        }, 16*bl*1000);
+    }
+
+    function updateAllLines() { if(isBassRolled) updateBassline(true); if(isArpRolled) updateArpLine(true); if(isMelodyRolled) updateMelodyLine(true); }
+
+    // Sauvegarder di riddim fi di futur youth star bredda mon!
+    function exportMasterMIDI() {
+        const bt = 480; 
+        const tracks = [[], [], [], [], []]; 
+
+        const microPerBeat = Math.round(60000000 / bpm);
+        tracks[0].push({t: 0, type: 0xFF, subtype: 0x51, data: [
+            (microPerBeat >> 16) & 0xFF,
+            (microPerBeat >> 8) & 0xFF,
+            microPerBeat & 0xFF
+        ]});
+        const name = "Jennyrave Session";
+        tracks[0].push({t: 0, type: 0xFF, subtype: 0x03, data: Array.from(name).map(c => c.charCodeAt(0))});
+
+        currentProgression.forEach((chordGroup, barIndex) => chordGroup.forEach(midiNote => { 
+            tracks[1].push({t: barIndex*4*bt, type: 0x90, n: midiNote, v: 0x50}, {t: (barIndex+1)*4*bt-20, type: 0x80, n: midiNote, v: 0x00}); 
+        }));
+        currentBassline.forEach(noteObj => { 
+            tracks[2].push({t: Math.floor(noteObj.step*bt), type: 0x91, n: noteObj.midi, v: 0x60}, {t: Math.floor((noteObj.step+noteObj.dur)*bt)-20, type: 0x81, n: noteObj.midi, v: 0x00}); 
+        });
+        currentArpLine.forEach(noteObj => { 
+            tracks[3].push({t: Math.floor(noteObj.step*bt), type: 0x92, n: noteObj.midi, v: 0x50}, {t: Math.floor((noteObj.step+noteObj.dur)*bt)-20, type: 0x82, n: noteObj.midi, v: 0x00}); 
+        });
+        currentMelodyLine.forEach(noteObj => { 
+            tracks[4].push({t: Math.floor(noteObj.step*bt), type: 0x93, n: noteObj.midi, v: 0x50}, {t: Math.floor((noteObj.step+noteObj.dur)*bt)-20, type: 0x83, n: noteObj.midi, v: 0x00}); 
+        });
+
+        const serializeTrack = (events) => {
+            events.sort((a, b) => a.t - b.t);
+            let last = 0, bytes = [];
+            const toVLQ = (n) => {
+                let buffer = [n & 0x7F];
+                while (n >>= 7) buffer.push((n & 0x7F) | 0x80);
+                return buffer.reverse();
+            };
+            events.forEach(e => {
+                let delta = e.t - last; last = e.t;
+                bytes.push(...toVLQ(delta));
+                if (e.type === 0xFF) { 
+                    bytes.push(0xFF, e.subtype, e.data.length, ...e.data);
+                } else { 
+                    bytes.push(e.type, e.n, e.v);
+                }
+            });
+            bytes.push(0x00, 0xFF, 0x2F, 0x00); 
+            const l = bytes.length;
+            return [0x4D, 0x54, 0x72, 0x6B, (l>>24)&0xFF, (l>>16)&0xFF, (l>>8)&0xFF, l&0xFF].concat(bytes);
+        };
+
+        const header = [0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00, 0x05, 0x01, 0xE0];
+        let fullData = header;
+        tracks.forEach(trackEvents => {
+            fullData = fullData.concat(serializeTrack(trackEvents));
+        });
+
+        const blob = new Blob([new Uint8Array(fullData)], {type: 'audio/midi'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `jennyrave_session_${Date.now()}.mid`; a.click();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
